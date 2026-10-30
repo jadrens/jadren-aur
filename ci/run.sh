@@ -14,7 +14,10 @@ cat > ~/.ssh/known_hosts <<'HOSTS'
 aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLIcN
 HOSTS
 
-eval "$(ssh-agent -s)" >/dev/null
+# Separate assignment: eval "$(...)" would hide a failed start and fall through
+# to any inherited agent.
+agent_env=$(ssh-agent -s)
+eval "$agent_env" >/dev/null
 trap 'ssh-agent -k >/dev/null' EXIT
 
 askpass=$(mktemp)

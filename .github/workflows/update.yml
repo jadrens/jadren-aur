@@ -1,0 +1,32 @@
+name: Update AUR packages
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aur-update
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Install tools
+        run: |
+          pacman -Syu --noconfirm --needed git github-cli openssh
+          useradd -m builder
+
+      - uses: actions/checkout@v5
+
+      - name: Update and push packages
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          AUR_SSH_PASSPHRASE: ${{ secrets.AUR_SSH_PASSPHRASE }}
+          GH_TOKEN: ${{ github.token }}
+        # makepkg refuses to run as root
+        run: runuser -u builder -- env HOME=/home/builder bash ci/run.sh

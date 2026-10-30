@@ -23,8 +23,10 @@ trap 'ssh-agent -k >/dev/null' EXIT
 askpass=$(mktemp)
 printf '#!/bin/sh\nprintf "%%s\\n" "$AUR_SSH_PASSPHRASE"\n' > "$askpass"
 chmod 700 "$askpass"
+# timeout: ssh-add keeps asking forever when the passphrase is wrong
 tr -d '\r' <<< "$AUR_SSH_PRIVATE_KEY" \
-  | SSH_ASKPASS=$askpass SSH_ASKPASS_REQUIRE=force ssh-add -q -
+  | SSH_ASKPASS=$askpass SSH_ASKPASS_REQUIRE=force timeout 30 ssh-add -q - \
+  || { echo "error: could not load AUR_SSH_PRIVATE_KEY; check the key and passphrase" >&2; exit 1; }
 rm -f "$askpass"
 unset AUR_SSH_PRIVATE_KEY AUR_SSH_PASSPHRASE
 
@@ -32,7 +34,8 @@ git config --global user.name "Jadren"
 git config --global user.email "jadren@jadren.dev"
 
 failed=0
-for pkg in pi-desktop-bin pi-desktop-beta-bin; do
+for dir in packages/*/; do
+  pkg=$(basename "$dir")
   echo "::group::$pkg"
   bash ci/update-package.sh "$pkg" || { echo "::error::$pkg failed"; failed=1; }
   echo "::endgroup::"
